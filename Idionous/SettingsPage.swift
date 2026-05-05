@@ -11,36 +11,50 @@ struct SettingsPage: View {
     private let service = LLMService()
 
     var body: some View {
-        Form {
-            Section(header: Text("LLM")) {
-                if isLoading {
-                    HStack { ProgressView(); Spacer() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                settingsCard(title: "LLM Host Endpoint", subtitle: "Set the Ollama base URL. Defaults to http://localhost:11434") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            TextField("Ollama Base URL", text: $tempURLString)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.callout)
+                            Button("Save") { saveURL() }
+                                .disabled(tempURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                        Text("Current: \(ollamaBaseURLString)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                Picker("Model", selection: $selectedModel) {
-                    if availableModels.isEmpty {
-                        Text("No models found").tag("")
-                    } else {
-                        ForEach(availableModels, id: \.self) { model in
-                            Text(model).tag(model)
+                
+                settingsCard(title: "LLM", subtitle: "Choose which local model to use.") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if isLoading {
+                            HStack { ProgressView(); Spacer() }
+                        }
+                        HStack(spacing: 8) {
+                            Picker("Model", selection: $selectedModel) {
+                                if availableModels.isEmpty {
+                                    Text("No models found").tag("")
+                                } else {
+                                    ForEach(availableModels, id: \.self) { model in
+                                        Text(model).tag(model)
+                                    }
+                                }
+                            }
+                            .labelsHidden()
+                            .disabled(isLoading)
+
+                            Button("Refresh") { refreshModels() }
+                                .disabled(isLoading)
                         }
                     }
                 }
-                .disabled(isLoading)
-                Button("Refresh Models") { refreshModels() }
-                    .disabled(isLoading)
             }
-
-            Section(header: Text("Server"), footer: Text("Set the Ollama base URL. Defaults to http://localhost:11434")) {
-                HStack(spacing: 8) {
-                    TextField("Ollama Base URL", text: $tempURLString)
-                    Button("Save") { saveURL() }
-                        .disabled(tempURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                Text("Current: \(ollamaBaseURLString)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            .padding(20)
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("Settings")
         .onAppear {
             tempURLString = ollamaBaseURLString
@@ -48,6 +62,30 @@ struct SettingsPage: View {
         }
     }
 
+    // MARK: - Card helper
+    private func settingsCard<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            if let subtitle = subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            content()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.secondary.opacity(0.15))
+        )
+    }
+
+    // MARK: - Logic
     private func refreshModels() {
         isLoading = true
         Task {
